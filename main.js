@@ -2,19 +2,25 @@ const axios = require('axios');
 const nacl = require('tweetnacl');
 const base58 = require('bs58');
 const fs = require('fs').promises;
-const colors = require('colors');
+const displayskw = require('./displayskw');
+const chalk = require('chalk');
+const cron = require('node-cron');
 const figlet = require('figlet');
 require('dotenv').config();
 
-const displayWelcomeMessage = require('./welcomeMessage');
-
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const date = new Date().toLocaleDateString('id-ID');
 
 const HEADERS = {
   "accept": "application/json, text/plain, */*",
   "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
 };
+
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function getPrivateKeys() {
   try {
@@ -103,7 +109,7 @@ async function dailyPoints(accessToken) {
   const url = "https://api.assisterr.ai/incentive/users/me/daily_points/";
 
   if (!accessToken) {
-    console.log(colors.red("Tidak ada token otorisasi ditemukan."));
+    console.log(chalk.red("Tidak ada token otorisasi ditemukan."));
     return;
   }
 
@@ -116,17 +122,17 @@ async function dailyPoints(accessToken) {
     const response = await axios.post(url, {}, { headers });
 
     if (response.status === 200) {
-      console.log(colors.green(`Claim sukses`));
+      console.log(chalk.hex('#90ee90')(`✅ Claim sukses`));
     } else {
-      console.log(colors.yellow(`Sudah Claim`));
+      console.log(chalk.hex('#ffff99')(`❌ Sudah Claim`));
     }
   } catch (error) {
-    console.log(colors.red(`Claim Cooldown`));
+    console.log(chalk.hex('#ff6666')(`🔄 Claim Cooldown`));
   }
 }
 
 async function sendBalanceToTelegram(totalAccounts, totalPoints) {
-  const message = `🔆 *Assister Report
+  const message = `🔆 *Assister Report ${date}
 
       🤖 Total Akun :${totalAccounts}
       💰 Total $sASSR :${(totalPoints / 100).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -145,6 +151,11 @@ async function sendBalanceToTelegram(totalAccounts, totalPoints) {
 }
 
 async function startBot() {
+  console.clear();
+  displayskw();
+  console.log();
+  await delay(3000);
+
   try {
     const privateKeys = await getPrivateKeys();
     let totalAccounts = 0;
@@ -153,51 +164,40 @@ async function startBot() {
     for (const privateKey of privateKeys) {
       const accessToken = await getAccessToken(privateKey);
       const { username, points } = await getUserData(accessToken);
-      totalAccounts++;
-      totalPoints += points;
-
-      console.log(colors.blue(`Akun ${username} point: ${points}`));
+      console.log(chalk.hex('#ffb347')(`🤖 Akun ${username}`));
       await dailyPoints(accessToken);
+      totalAccounts++;
+      console.log(chalk.hex('#add8e6')(`💰 Point Akun ${username}: ${points}\n`));
     }
 
+    for (const privateKey of privateKeys) {
+      const accessToken = await getAccessToken(privateKey);
+      const { username, points } = await getUserData(accessToken);
+      const pointValue = Number(points) || 0;
+      totalPoints += pointValue;
+    }
+
+    console.log();
+    console.log(chalk.hex('#90ee90')(`🤖 Total Akun: ${totalAccounts}\n💰 Total Points: ${totalPoints}`));
     await sendBalanceToTelegram(totalAccounts, totalPoints);
-    console.log(colors.green('Balance sent to Telegram successfully.\n')); 
+    console.log(chalk.hex('#ffff99')('💦 Pesan dikirim ke Telegram\n'));
   } catch (error) {
-    console.error(colors.red(`Error in startBot execution: ${error.message}`));
+    console.error(chalk.hex('#ff6666')(`Error in startBot execution: ${error.message}`));
   }
 }
 
 async function main() {
-  console.clear();
-  const intervalTime = (12 * 60 * 60 * 1000) + (1 * 60 * 1000);
+    cron.schedule('1 */12 * * *', async () => { 
+        await startBot();
+        console.log();
+        console.log(chalk.magenta.bold(`Cron AKTIF`));
+        console.log(chalk.magenta('Menunggu Claim Berikutnya 12 jam...'));
+    });
 
-  const runBot = async () => {
-    displayWelcomeMessage();
-    await startBot(); 
-    startCountdown(); 
-  };
-
-  const startCountdown = () => {
-    let countdown = intervalTime / 1000; 
-
-    const countdownInterval = setInterval(() => {
-      if (countdown <= 0) {
-        clearInterval(countdownInterval); 
-        console.log(colors.red('Waktu habis, menjalankan bot kembali...\n')); 
-      } else {
-        process.stdout.clearLine();
-        process.stdout.cursorTo(0);
-        process.stdout.write(colors.magenta(`Cooldown Claim Berikutnya: ${countdown} detik`));
-        countdown--;
-      }
-    }, 1000);
-  };
-
-  await runBot();
-
-  setInterval(runBot, intervalTime);
+    await startBot();
+    console.log();
+    console.log(chalk.magenta.bold(`Cron AKTIF`));
+    console.log(chalk.magenta('Menunggu Claim Berikutnya 12 jam...'));
 }
 
-if (require.main === module) {
-  main();
-}
+main();
