@@ -187,7 +187,7 @@ async function startBot() {
 }
 
 async function main() {
-    cron.schedule('1 */12 * * *', async () => { 
+    cron.schedule('2 */12 * * *', async () => { 
         await startBot();
         console.log();
         console.log(chalk.magenta.bold(`Cron AKTIF`));
