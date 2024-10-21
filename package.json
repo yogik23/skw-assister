@@ -3,14 +3,13 @@
     "@solana/web3.js": "^1.95.3",
     "axios": "^1.7.7",
     "bs58": "^5.0.0",
-    "chalk": "^4.1.2",
-    "node-cron": "^3.0.3",
+    "colors": "^1.4.0",
     "dotenv": "^16.4.5",
     "figlet": "^1.7.0",
     "readline-sync": "^1.4.10",
     "tweetnacl": "^1.0.3"
   },
-  "name": "assister autobot",
+  "name": "ass",
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
