@@ -153,8 +153,8 @@ async function startBot() {
 
     for (const privateKey of privateKeys) {
       const accessToken = await getAccessToken(privateKey);
-      const { username, points } = await getUserData(accessToken);
       await dailyPoints(accessToken);
+      const { username, points } = await getUserData(accessToken);
       totalAccounts++;
       totalPoints += points;
 
