@@ -6,7 +6,7 @@ const colors = require('colors');
 const figlet = require('figlet');
 require('dotenv').config();
 
-const displayWelcomeMessage = require('./welcomeMessage');
+const displayskw = require('./displayskw');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -173,7 +173,7 @@ async function main() {
   const intervalTime = (12 * 60 * 60 * 1000) + (1 * 60 * 1000);
 
   const runBot = async () => {
-    displayWelcomeMessage();
+    displayskw();
     await startBot(); 
     startCountdown(); 
   };
