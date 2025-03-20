@@ -21,6 +21,10 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const date = new Date().toISOString().split('T')[0];
 
+function formatNumber(number) {
+  return (number / 100).toLocaleString("en-US", { minimumFractionDigits: 2 });
+}
+
 async function getUserData(accessToken) {
   try {
     const response = await axios.get('https://api.assisterr.ai/incentive/users/me/', {
@@ -109,7 +113,8 @@ async function startBot() {
         const updatedData = await getUserData(accessToken);
         if (!updatedData) continue;
 
-        console.log(chalk.hex('#66CDAA')(`💰 Point ${updatedData.points}\n`));
+        const formattedPoints = formatNumber(updatedData.points);
+        console.log(chalk.hex('#66CDAA')(`💰 Point ${formattedPoints}\n`));
 
         totalAccounts++;
         totalPoints += updatedData.points;
