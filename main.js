@@ -2,113 +2,53 @@ const axios = require('axios');
 const nacl = require('tweetnacl');
 const base58 = require('bs58');
 const fs = require('fs').promises;
-const displayskw = require('./displayskw');
+const { displayskw } = require('./displayskw');
 const chalk = require('chalk');
 const figlet = require('figlet');
 require('dotenv').config();
 
+const {
+  delay,
+  HEADERS,
+  getPrivateKeys,
+  getKeypair,
+  getMessage,
+  getAccessToken,
+  sendBalanceToTelegram,
+} = require('./skw/nudin');
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-const date = new Date().toLocaleDateString('id-ID');
+const date = new Date().toISOString().split('T')[0];
 
-const HEADERS = {
-  "accept": "application/json, text/plain, */*",
-  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
-};
-
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function getPrivateKeys() {
+async function getUserData(accessToken) {
   try {
-    const data = await fs.readFile('privateKeys.json', 'utf8');
-    const privateKeys = JSON.parse(data);
-    if (!Array.isArray(privateKeys) || privateKeys.length === 0) {
-      throw new Error('Private keys not found in file');
+    const response = await axios.get('https://api.assisterr.ai/incentive/users/me/', {
+      headers: {
+        ...HEADERS,
+        "Authorization": `Bearer ${accessToken}`,
+      },
+    });
+
+    if (response.status !== 200 || !response.data) {
+      throw new Error(`Unexpected response: ${response.status}`);
     }
-    return privateKeys;
+
+    return {
+      username: response.data.username, 
+      points: response.data.points, 
+    };
   } catch (error) {
-    console.error(`Error reading private key file: ${error.message}`);
+    console.error(chalk.red(`❌ Error fetching user data: ${error.message}`));
     return null;
   }
-}
-
-function getKeypair(privateKey) {
-  const keypairBuffer = base58.decode(privateKey);
-  return nacl.sign.keyPair.fromSecretKey(keypairBuffer);
-}
-
-async function getMessage() {
-  const response = await axios({
-    url: 'https://api.assisterr.ai/incentive/auth/login/get_message/',
-    method: 'GET',
-    headers: HEADERS,
-  });
-
-  if (!response || !response.data) {
-    throw new Error('Error fetching message');
-  }
-
-  return response.data; 
-}
-
-async function getAccessToken(privateKey) {
-  const keypair = getKeypair(privateKey);
-  const message = await getMessage();
-
-  const sign = nacl.sign.detached(
-    Buffer.from(message),
-    keypair.secretKey
-  );
-
-  const signature = base58.encode(sign);
-  const key = base58.encode(keypair.publicKey);
-
-  const loginResponse = await axios({
-    url: 'https://api.assisterr.ai/incentive/auth/login/',
-    method: 'POST',
-    data: {
-      message: message,
-      signature: signature,
-      key: key,
-    },
-    headers: HEADERS,
-  });
-
-  if (!loginResponse || !loginResponse.data) {
-    throw new Error('Login failed, no response data');
-  }
-
-  return loginResponse.data.access_token; 
-}
-
-async function getUserData(token) {
-  const response = await axios({
-    url: 'https://api.assisterr.ai/incentive/users/me/',
-    method: 'GET',
-    headers: {
-      ...HEADERS,
-      "Authorization": `Bearer ${token}`,
-    },
-  });
-
-  if (!response || !response.data) {
-    throw new Error('Error fetching user data');
-  }
-
-  return {
-    username: response.data.username, 
-    points: response.data.points, 
-  };
 }
 
 async function dailyPoints(accessToken) {
   const url = "https://api.assisterr.ai/incentive/users/me/daily_points/";
 
   if (!accessToken) {
-    console.log(chalk.red("Tidak ada token otorisasi ditemukan."));
+    console.log(chalk.red("❌ Tidak ada token otorisasi ditemukan."));
     return;
   }
 
@@ -121,31 +61,20 @@ async function dailyPoints(accessToken) {
     const response = await axios.post(url, {}, { headers });
 
     if (response.status === 200) {
-      console.log(chalk.hex('#90ee90')(`✅ Claim sukses`));
-    } else {
-      console.log(chalk.hex('#ffff99')(`❌ Sudah Claim`));
+      console.log(chalk.hex('#20B2AA')(`✅ Claim sukses`));
     }
   } catch (error) {
-    console.log(chalk.hex('#ff6666')(`🔄 Claim Cooldown`));
-  }
-}
-
-async function sendBalanceToTelegram(totalAccounts, totalPoints) {
-  const message = `🔆 *Assister Report ${date}
-
-      🤖 Total Akun :${totalAccounts}
-      💰 Total $sASSR :${(totalPoints / 100).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-
-         ==SKW Airdrop Hunter==*`;
-
-  try {
-    const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: TELEGRAM_CHAT_ID,
-      text: message,
-      parse_mode: "Markdown",
-    });
-  } catch (error) {
-    console.error(`Error sending message to Telegram: ${error.message}`);
+    if (error.response) {
+      if (error.response.status === 400) {
+        console.log(chalk.hex('#20B2AA')(`⚠️ Sudah Claim`));
+      } else if (error.response.status === 401) {
+        console.log(chalk.red(`🚫 Token tidak valid`));
+      } else {
+        console.log(chalk.red(`❌ Error: ${error.response.status} - ${error.response.data.message || 'Unknown error'}`));
+      }
+    } else {
+      console.log(chalk.red(`🔄 Claim Cooldown atau jaringan error`));
+    }
   }
 }
 
@@ -161,22 +90,40 @@ async function startBot() {
     let totalPoints = 0;
 
     for (const privateKey of privateKeys) {
-      const accessToken = await getAccessToken(privateKey);
-      const { username } = await getUserData(accessToken);
-      console.log(chalk.hex('#ffb347')(`🤖 Akun ${username}`));
-      await dailyPoints(accessToken);
-      const { points } = await getUserData(accessToken);
-      console.log(chalk.hex('#add8e6')(`💰 Point Akun ${username}: ${points}\n`));
-      totalAccounts++;
-      totalPoints += points;
+      try {
+        const accessToken = await getAccessToken(privateKey);
+        if (!accessToken) {
+          console.log(chalk.red(`❌ Gagal mendapatkan token untuk akun.`));
+          continue;
+        }
+
+        const userData = await getUserData(accessToken);
+        if (!userData) {
+          console.log(chalk.red(`❌ Gagal mendapatkan data user.`));
+          continue;
+        }
+
+        console.log(chalk.hex('#7B68EE')(`🤖 Akun ${userData.username}`));
+
+        await dailyPoints(accessToken);
+        const updatedData = await getUserData(accessToken);
+        if (!updatedData) continue;
+
+        console.log(chalk.hex('#66CDAA')(`💰 Point ${updatedData.points}\n`));
+
+        totalAccounts++;
+        totalPoints += updatedData.points;
+      } catch (error) {
+        console.error(chalk.red(`❌ Error processing an account: ${error.message}`));
+      }
     }
 
     console.log();
-    console.log(chalk.hex('#90ee90')(`🤖 Total Akun: ${totalAccounts}\n💰 Total Points: ${totalPoints}`));
+    console.log(chalk.hex('#20B2AA')(`🤖 Total Akun: ${totalAccounts}\n💰 Total Points: ${totalPoints}`));
     await sendBalanceToTelegram(totalAccounts, totalPoints);
-    console.log(chalk.hex('#ffff99')('💦 Pesan dikirim ke Telegram\n'));
+    console.log(chalk.hex('#48D1CC')('📩 Pesan dikirim ke Telegram\n'));
   } catch (error) {
-    console.error(chalk.hex('#ff6666')(`Error in startBot execution: ${error.message}`));
+    console.error(chalk.red(`❌ Error in startBot execution: ${error.message}`));
   }
 }
 
@@ -191,16 +138,16 @@ async function main() {
   };
 
   const startCountdown = () => {
-    let countdown = intervalTime / 1000; 
+    let countdown = intervalTime / 1000;
 
     const countdownInterval = setInterval(() => {
       if (countdown <= 0) {
-        clearInterval(countdownInterval); 
-        console.log(chalk.red('Waktu habis, menjalankan bot kembali...\n')); 
+        clearInterval(countdownInterval);
+        console.log(chalk.hex('#7B68EE')('\n⏳ Waktu habis, menjalankan bot kembali...\n'));
       } else {
-        process.stdout.clearLine();
+        process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
-        process.stdout.write(chalk.magenta(`Cooldown Claim Berikutnya: ${countdown} detik`));
+        process.stdout.write(chalk.hex('#7B68EE')(`⏳ Cooldown berikutnya: ${countdown} detik`));
         countdown--;
       }
     }, 1000);
@@ -211,6 +158,4 @@ async function main() {
   setInterval(runBot, intervalTime);
 }
 
-if (require.main === module) {
-  main();
-}
+main();
