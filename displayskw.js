@@ -1,19 +1,26 @@
 const chalk = require('chalk');
-const welcomeskw = `
+
+const welcomeskw = chalk.hex('#00CED1')(`
    ███████╗██╗  ██╗██╗    ██╗
    ██╔════╝██║ ██╔╝██║    ██║
    ███████╗█████╔╝ ██║ █╗ ██║
    ╚════██║██╔═██╗ ██║███╗██║
    ███████║██║  ██╗╚███╔███╔╝
    ╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝ 
-                          
-`;
+`);
 
 function displayskw() {
   console.log(welcomeskw);
-  console.log(chalk.hex('#ffb347')(`Fitur Autobot by SKW AIRDROP HUNTER`));
-  console.log(chalk.hex('#90ee90')('1. Auto claim 12 jam sekali'));
-  console.log(chalk.hex('#90ee90')('2. Kirim Status ke Telegram'));
+  console.log(chalk.hex('#00CED1')(" ╔══════════════════════════════════════════════════════════════╗"));
+  console.log(chalk.hex('#00CED1')(" ║ ≣  Fitur Autobot by SKW AIRDROP HUNTER                       ║"));
+  console.log(chalk.hex('#00CED1')(" ║══════════════════════════════════════════════════════════════║"));
+  console.log(chalk.hex('#00CED1')(" ║ ➤   Auto claim 12 jam sekali                                ║"));
+  console.log(chalk.hex('#00CED1')(" ║ ➤   Auto Chat Ai                                            ║"));
+  console.log(chalk.hex('#00CED1')(" ║ ➤   Kirim Status ke Telegram                                ║"));
+  console.log(chalk.hex('#00CED1')(" ║ ➤   Multi Akun                                              ║"));
+  console.log(chalk.hex('#00CED1')(" ║ ➤   Sudah Pasti Elig                                        ║"));
+  console.log(chalk.hex('#00CED1')(" ╚══════════════════════════════════════════════════════════════╝"));
+  console.log(chalk.hex('#00CED1')("   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░"));
 }
 
-module.exports = displayskw;
+module.exports = { displayskw };
