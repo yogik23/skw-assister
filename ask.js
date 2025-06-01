@@ -12,6 +12,7 @@ const {
 } = require('./skw/nudin');
 
 const assistants = [
+  { slug: "skw_ai", name: "Skw-Ai" },
   { slug: "metis_assistant", name: "Metis" },
   { slug: "particle_network_assistant", name: "Particle" },
   { slug: "0g_assistant", name: "0g" },
